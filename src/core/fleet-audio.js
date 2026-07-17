@@ -67,6 +67,41 @@ export function sfxSelect() {
   tone({ freq: 660, dur: 0.09, type: 'square', gain: 0.12, glideTo: 880 });
 }
 
+// ── ThreeJS-Ball facet audio port (Phase 3b) ──
+// Faithful to the ball's core.js recipe: baseFreq 220 + (facet%12)*50,
+// waveform cycles by facet, ±50¢ detune, 5ms attack / 100ms release.
+
+const FACET_WAVES = ['sine', 'triangle', 'square', 'sawtooth'];
+
+export function sfxFacet(facetIndex, u = 0.5) {
+  if (!ensureCtx() || muted) return;
+  const baseFreq = 220 + (facetIndex % 12) * 50;
+  const freq = baseFreq + 30 * (u - 0.5);
+  const t0 = ctx.currentTime;
+  const osc = ctx.createOscillator();
+  const env = ctx.createGain();
+  osc.type = FACET_WAVES[facetIndex % FACET_WAVES.length];
+  osc.detune.value = (facetIndex * 7) % 100 - 50;
+  osc.frequency.value = freq;
+  env.gain.setValueAtTime(0, t0);
+  env.gain.linearRampToValueAtTime(0.18, t0 + 0.005);
+  env.gain.linearRampToValueAtTime(0.12, t0 + 0.05);
+  env.gain.linearRampToValueAtTime(0, t0 + 0.1);
+  osc.connect(env); env.connect(master);
+  osc.start(t0); osc.stop(t0 + 0.15);
+}
+
+// Ball chords: click = E major, release = C major
+const CHORDS = {
+  click: [164.81, 207.65, 246.94, 329.63],   // E3 G#3 B3 E4
+  release: [130.81, 164.81, 196.0, 261.63],  // C3 E3 G3 C4
+};
+
+export function sfxChord(name = 'click') {
+  const notes = CHORDS[name] || CHORDS.click;
+  notes.forEach((f, i) => tone({ freq: f, dur: 0.5, type: 'triangle', gain: 0.14, delay: i * 0.015 }));
+}
+
 // ── Controls API ──
 
 export function setSfxVolume(v) {

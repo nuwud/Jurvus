@@ -18,7 +18,8 @@ Give Patrick a single glanceable view of what his OpenClaw agent fleet is doing 
 | **2** ✅ | **Fleet ring shipped 2026-07-17:** `server/fleet.js` polls gateway RPC (`cron.list`) + `nvidia-smi` every 5s → SSE `{type:'fleet'}`; `src/components/fleet.js` renders one dual-layer ThreeJS-Ball-style orb per agent (breathing idle 😌, wobble+pulse running ⚡, triple-flash error 🔴, dimmed unknown 😶) in a slow-spinning ring; **click an orb → chat routes to that agent** (`POST /api/agent/select` swaps sessionKey server-side, history reloads). Central orb kept as LOC presence. | this repo |
 | **2.5** 🔜 | VRAM gauge HUD panel (data already in fleet SSE), facet-audio port from ThreeJS-Ball, cron countdowns on orb labels | this repo |
 | **3a** ✅ | **Controls shipped 2026-07-17:** FLEET tab in DATA CENTER — ring/label toggles, spin/radius/orb-size sliders (persisted), live agent menu with state dots + click-to-talk; `fleet-audio.js` SFX engine (pentatonic pings ⚡, error buzz 🔴, select click — volume/mute persisted); 🎥 CINEMA mode (all HUD hidden, camera auto-orbit, ESC exits) | this repo |
-| **3b** 🔮 | Full facet audio port, voice conversation loop, productization | this repo |
+| **3b** ✅ | **Ball DNA shipped 2026-07-17:** faithful ThreeJS-Ball facet audio port (baseFreq 220+(facet%12)·50, waveform-per-facet, ±50¢ detune, ball envelope) on orb hover; hover **dents** with 0.6s spring-back on both mesh layers; E-major click chord on orb select; Watermelon-Hydrogen Carousel3DPro focus methodology — selected orb eases to front and holds (FOCUS toggle), ←/→ arrow keys cycle agents (credit: nuwud/Watermelon-Hydrogen, nuwud/threejs-ball) | this repo |
+| **3c** 🔮 | Voice conversation loop (mic → agent → TTS), productization | this repo |
 
 **Attribution:** ISC license and Jincoco/Filip Zrnzevic credits stay in README + LICENSE. ✍️
 

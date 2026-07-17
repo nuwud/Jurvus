@@ -6,7 +6,7 @@
 
 import * as THREE from 'three';
 import { getScene, getCamera } from '../core/scene.js';
-import { sfxRunning, sfxDone, sfxError, sfxSelect } from '../core/fleet-audio.js';
+import { sfxRunning, sfxDone, sfxError, sfxSelect, sfxFacet, sfxChord } from '../core/fleet-audio.js';
 
 const ORB_RADIUS = 0.55;
 
@@ -17,8 +17,14 @@ const settings = {
   spin: parseFloat(localStorage.getItem('jurvus-fleet-spin') ?? '0.02'),
   radius: parseFloat(localStorage.getItem('jurvus-fleet-radius') ?? '6.2'),
   scale: parseFloat(localStorage.getItem('jurvus-fleet-scale') ?? '1'),
+  focus: localStorage.getItem('jurvus-fleet-focus') !== '0', // Watermelon-style snap-to-front
   sound: true,
 };
+
+// Watermelon-Hydrogen Carousel3DPro convention: deterministic index→angle
+// mapping, front position anchored (credit: nuwud/Watermelon-Hydrogen).
+const FRONT_ANGLE = Math.PI / 2; // +Z, toward the default camera
+let focusTargetSpin = null;      // eased toward when focus mode is on
 
 const STATE_STYLE = {
   idle:    { opacity: 0.35, wire: 0.9,  breatheHz: 0.25, breatheAmt: 0.03, wobble: 0.00 },
@@ -72,6 +78,7 @@ function makeOrb(agent, index, total) {
     color, wireframe: true, transparent: true, opacity: 0.9,
   }));
   wire.userData.basePositions = wire.geometry.attributes.position.array.slice();
+  surface.userData.basePositions = surface.geometry.attributes.position.array.slice();
 
   const label = makeLabel(agent.id.replace(/^nuwud-/, ''), '#' + color.getHexString());
   label.position.y = -ORB_RADIUS - 0.55;
@@ -88,6 +95,7 @@ function makeOrb(agent, index, total) {
   return {
     id: agent.id, pivot, holder, surface, wire, label, angle, index,
     color, state: 'unknown', errorFlashT: 0, phase: Math.random() * Math.PI * 2,
+    dents: [], // ThreeJS-Ball hover dents: { dir: Vector3 (local), t0 }
   };
 }
 
@@ -152,6 +160,9 @@ export async function selectAgent(agentId) {
       selectionRing.material.color.copy(orb.color);
     }
 
+    // Watermelon-style focus: ease the ring so the chosen orb faces the camera
+    if (settings.focus && orb) focusTargetSpin = FRONT_ANGLE - orb.angle;
+
     // Retitle the chat panel + notify the rest of the UI
     const chatLabel = document.querySelector('.terminal-panel.chat-panel .terminal-header span');
     if (chatLabel) chatLabel.textContent = `${agentId.toUpperCase()} CHAT`;
@@ -161,20 +172,58 @@ export async function selectAgent(agentId) {
   }
 }
 
+function castAt(e, raycaster, mouse) {
+  const camera = getCamera();
+  if (!camera || !group) return null;
+  mouse.set((e.clientX / window.innerWidth) * 2 - 1, -(e.clientY / window.innerHeight) * 2 + 1);
+  raycaster.setFromCamera(mouse, camera);
+  const hits = raycaster.intersectObjects(group.children, true);
+  for (const hit of hits) {
+    let node = hit.object;
+    while (node && !node.userData?.agentId) node = node.parent;
+    if (node?.userData?.agentId) return { hit, agentId: node.userData.agentId };
+  }
+  return null;
+}
+
 function initPicking() {
   const raycaster = new THREE.Raycaster();
   const mouse = new THREE.Vector2();
+
   window.addEventListener('click', (e) => {
     if (e.target.tagName !== 'CANVAS') return; // ignore clicks on HUD panels
-    const camera = getCamera();
-    if (!camera || !group) return;
-    mouse.set((e.clientX / window.innerWidth) * 2 - 1, -(e.clientY / window.innerHeight) * 2 + 1);
-    raycaster.setFromCamera(mouse, camera);
-    const hits = raycaster.intersectObjects(group.children, true);
-    for (const hit of hits) {
-      let node = hit.object;
-      while (node && !node.userData?.agentId) node = node.parent;
-      if (node?.userData?.agentId) { selectAgent(node.userData.agentId); return; }
+    const found = castAt(e, raycaster, mouse);
+    if (found) {
+      if (settings.sound) sfxChord('click'); // ThreeJS-Ball E-major click
+      selectAgent(found.agentId);
+    }
+  });
+
+  // ThreeJS-Ball hover: facet sounds + surface dents
+  let lastFacet = -1, lastAgent = null, lastHoverT = 0;
+  window.addEventListener('pointermove', (e) => {
+    if (e.target.tagName !== 'CANVAS') return;
+    const now = performance.now();
+    if (now - lastHoverT < 50) return; // throttle raycasts
+    lastHoverT = now;
+
+    const found = castAt(e, raycaster, mouse);
+    if (!found) { lastFacet = -1; lastAgent = null; return; }
+
+    const orb = orbs.get(found.agentId);
+    if (!orb) return;
+    const facet = found.hit.faceIndex ?? 0;
+
+    if (facet !== lastFacet || found.agentId !== lastAgent) {
+      lastFacet = facet; lastAgent = found.agentId;
+      if (settings.sound) {
+        const u = 0.5 + (found.hit.face?.normal?.x || 0) * 0.5;
+        sfxFacet(facet, u);
+      }
+      // Dent at the hit point (local space), springs back in animate()
+      const local = orb.wire.worldToLocal(found.hit.point.clone()).normalize();
+      orb.dents.push({ dir: local, t0: clock.getElapsedTime() });
+      if (orb.dents.length > 6) orb.dents.shift();
     }
   });
 }
@@ -189,7 +238,15 @@ function animate() {
   if (!group) return;
   const t = clock.getElapsedTime();
   const dt = Math.min(t - lastT, 0.1); lastT = t;
-  spinAngle += dt * settings.spin;
+
+  if (focusTargetSpin !== null) {
+    // Watermelon-style ease-to-front (shortest path); ring holds the focused
+    // orb at front until FOCUS is toggled off or another agent is selected
+    const diff = ((focusTargetSpin - spinAngle + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI;
+    if (Math.abs(diff) > 0.0005) spinAngle += diff * Math.min(1, dt * 4);
+  } else {
+    spinAngle += dt * settings.spin;
+  }
   group.rotation.y = spinAngle;
   group.visible = settings.visible;
 
@@ -214,17 +271,34 @@ function animate() {
       }
     }
 
-    // Vertex wobble when running (ThreeJS-Ball deformation nod)
-    if (style.wobble > 0) {
-      const pos = orb.wire.geometry.attributes.position;
-      const base = orb.wire.userData.basePositions;
-      for (let i = 0; i < pos.count; i++) {
-        const ix = i * 3;
-        const nx = base[ix], ny = base[ix + 1], nz = base[ix + 2];
-        const w = 1 + Math.sin(t * 6 + nx * 5 + ny * 7 + nz * 3) * style.wobble * 0.12;
-        pos.array[ix] = nx * w; pos.array[ix + 1] = ny * w; pos.array[ix + 2] = nz * w;
+    // Vertex deformation: running wobble + ThreeJS-Ball hover dents (spring back ~0.6s)
+    orb.dents = orb.dents.filter(d => t - d.t0 < 0.6);
+    const deforming = style.wobble > 0 || orb.dents.length > 0;
+    if (deforming || orb.geoDirty) {
+      for (const mesh of [orb.wire, orb.surface]) {
+        const pos = mesh.geometry.attributes.position;
+        const base = mesh.userData.basePositions;
+        for (let i = 0; i < pos.count; i++) {
+          const ix = i * 3;
+          const nx = base[ix], ny = base[ix + 1], nz = base[ix + 2];
+          let w = 1;
+          if (style.wobble > 0) w += Math.sin(t * 6 + nx * 5 + ny * 7 + nz * 3) * style.wobble * 0.12;
+          if (orb.dents.length) {
+            const len = Math.hypot(nx, ny, nz) || 1;
+            const vx = nx / len, vy = ny / len, vz = nz / len;
+            for (const d of orb.dents) {
+              const align = vx * d.dir.x + vy * d.dir.y + vz * d.dir.z; // 1 at dent center
+              if (align > 0.6) {
+                const decay = 1 - (t - d.t0) / 0.6;
+                w -= Math.pow((align - 0.6) / 0.4, 2) * 0.22 * decay;
+              }
+            }
+          }
+          pos.array[ix] = nx * w; pos.array[ix + 1] = ny * w; pos.array[ix + 2] = nz * w;
+        }
+        pos.needsUpdate = true;
       }
-      pos.needsUpdate = true;
+      orb.geoDirty = deforming; // one restore pass after deformation ends
     }
 
     // Billboard labels are sprites — nothing to do; keep them upright vs ring spin
@@ -277,5 +351,13 @@ export function setFleetRadius(v) {
   }
 }
 
+export function setFleetFocus(v) {
+  settings.focus = !!v;
+  persist('jurvus-fleet-focus', v ? '1' : '0');
+  if (!v) focusTargetSpin = null;
+  else if (selectedId && orbs.has(selectedId)) focusTargetSpin = FRONT_ANGLE - orbs.get(selectedId).angle;
+}
+
 export function getFleetSettings() { return { ...settings }; }
 export function getSelectedAgent() { return selectedId; }
+export function getFleetAgentIds() { return [...orbs.keys()]; }

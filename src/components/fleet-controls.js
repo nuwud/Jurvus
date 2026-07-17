@@ -5,6 +5,7 @@
 import {
   selectAgent, getSelectedAgent, getFleetSettings,
   setFleetVisible, setFleetLabels, setFleetSpin, setFleetRadius, setFleetScale,
+  setFleetFocus,
 } from './fleet.js';
 import { setSfxVolume, getSfxVolume, setSfxMuted, isSfxMuted } from '../core/fleet-audio.js';
 import { getControls } from '../core/scene.js';
@@ -101,9 +102,10 @@ export function initFleetControls() {
   const toggles = el(`<div class="buttons" style="margin-bottom:10px;"></div>`);
   const visBtn = toggleBtn('RING', 'fleet-vis-btn', s.visible);
   const labBtn = toggleBtn('LABELS', 'fleet-lab-btn', s.labels);
+  const focusBtn = toggleBtn('FOCUS', 'fleet-focus-btn', s.focus);
   const muteBtn = toggleBtn(isSfxMuted() ? 'SFX OFF' : 'SFX ON', 'fleet-mute-btn', !isSfxMuted());
   const cineBtn = toggleBtn('🎥 CINEMA', 'fleet-cine-btn', false);
-  toggles.append(visBtn, labBtn, muteBtn, cineBtn);
+  toggles.append(visBtn, labBtn, focusBtn, muteBtn, cineBtn);
   content.appendChild(toggles);
 
   // Sliders
@@ -147,8 +149,23 @@ export function initFleetControls() {
   }
   muteBtn.addEventListener('click', toggleMute);
 
+  focusBtn.addEventListener('click', () => { const on = !getFleetSettings().focus; setFleetFocus(on); setToggleState(focusBtn, on); });
+
   cineBtn.addEventListener('click', () => setCinemaMode(!cinema));
   window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && cinema) setCinemaMode(false); });
+
+  // ⌨️ Arrow keys cycle through agents (Watermelon carousel navigation)
+  window.addEventListener('keydown', (e) => {
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+    const tag = (e.target.tagName || '').toLowerCase();
+    if (tag === 'input' || tag === 'textarea' || tag === 'select' || e.target.isContentEditable) return;
+    if (!latestAgents.length) return;
+    const ids = latestAgents.map(a => a.id);
+    const cur = ids.indexOf(getSelectedAgent());
+    const dir = e.key === 'ArrowRight' ? 1 : -1;
+    const next = ids[((cur < 0 ? 0 : cur + dir) + ids.length) % ids.length];
+    selectAgent(next);
+  });
 
   // Live agent data
   window.addEventListener('jurvus-fleet-data', (e) => {
