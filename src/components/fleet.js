@@ -22,9 +22,17 @@ const settings = {
 };
 
 // Watermelon-Hydrogen Carousel3DPro convention: deterministic index→angle
-// mapping, front position anchored (credit: nuwud/Watermelon-Hydrogen).
-const FRONT_ANGLE = Math.PI / 2; // +Z, toward the default camera
-let focusTargetSpin = null;      // eased toward when focus mode is on
+// mapping with a camera-relative front anchor (credit: nuwud/Watermelon-Hydrogen).
+// Ring-local world angle of an orb = orb.angle - spinAngle (group Y-rotation),
+// so "in front" means orb.angle - spin ≈ camera azimuth → target spin follows
+// the camera live, wherever the user has orbited it.
+let focusOrbId = null; // orb held at front while focus mode is on
+
+function cameraAzimuth() {
+  const cam = getCamera();
+  if (!cam) return Math.PI / 2;
+  return Math.atan2(cam.position.z, cam.position.x);
+}
 
 const STATE_STYLE = {
   idle:    { opacity: 0.35, wire: 0.9,  breatheHz: 0.25, breatheAmt: 0.03, wobble: 0.00 },
@@ -114,6 +122,9 @@ function setState(orb, state) {
     else if (state === 'error') sfxError();
     else if (state === 'idle' && prev === 'running') sfxDone(orb.index);
   }
+
+  // Keep the GITS text ring's status text current for the selected orb
+  if (orb.id === selectedId && textRingSprite) refreshTextRing(orb);
 }
 
 // ── Public: build / sync from telemetry ──
@@ -134,6 +145,64 @@ function syncFleet(agents) {
   window.dispatchEvent(new CustomEvent('jurvus-fleet-data', { detail: { agents, selectedId } }));
 }
 
+// ── GITS-style curved text ring (Ghost in the Shell UI homage) ──
+
+let textRingSprite = null;
+
+function makeCurvedTextTexture(text, colorHex) {
+  const size = 512;
+  const canvas = document.createElement('canvas');
+  canvas.width = size; canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, size, size);
+  ctx.font = 'bold 30px "Courier New", monospace';
+  ctx.fillStyle = '#eaffff';
+  ctx.shadowColor = colorHex; ctx.shadowBlur = 10;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+
+  // Repeat the text to fill the full circle, GITS "ONLINE ONLINE" style
+  const radius = 218;
+  const charW = 19; // approx advance at this font size
+  const circumference = 2 * Math.PI * radius;
+  const unit = text + ' ● ';
+  let full = unit;
+  while (full.length * charW < circumference) full += unit;
+
+  const anglePer = charW / radius;
+  ctx.translate(size / 2, size / 2);
+  for (let i = 0; i < full.length; i++) {
+    const a = i * anglePer;
+    if (a > Math.PI * 2 - anglePer) break;
+    ctx.save();
+    ctx.rotate(a);
+    ctx.translate(0, -radius);
+    ctx.fillText(full[i], 0, 0);
+    ctx.restore();
+  }
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.anisotropy = 4;
+  return tex;
+}
+
+function refreshTextRing(orb) {
+  if (!orb) return;
+  const label = `${orb.id.toUpperCase()} · ${orb.state.toUpperCase()} · ONLINE`;
+  const tex = makeCurvedTextTexture(label, '#' + orb.color.getHexString());
+  if (!textRingSprite) {
+    textRingSprite = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: tex, transparent: true, depthWrite: false, opacity: 0.95,
+    }));
+    const d = ORB_RADIUS * 4.6;
+    textRingSprite.scale.set(d, d, 1);
+  } else {
+    textRingSprite.material.map?.dispose();
+    textRingSprite.material.map = tex;
+    textRingSprite.material.needsUpdate = true;
+  }
+  orb.holder.add(textRingSprite);
+}
+
 // ── Selection ──
 
 export async function selectAgent(agentId) {
@@ -147,7 +216,7 @@ export async function selectAgent(agentId) {
     if (!r.ok) throw new Error('select failed');
     selectedId = agentId;
 
-    // Selection halo
+    // Selection halo + GITS curved text ring
     const orb = orbs.get(agentId);
     if (orb) {
       if (!selectionRing) {
@@ -158,10 +227,11 @@ export async function selectAgent(agentId) {
       }
       orb.holder.add(selectionRing);
       selectionRing.material.color.copy(orb.color);
+      refreshTextRing(orb);
     }
 
     // Watermelon-style focus: ease the ring so the chosen orb faces the camera
-    if (settings.focus && orb) focusTargetSpin = FRONT_ANGLE - orb.angle;
+    if (settings.focus && orb) focusOrbId = agentId;
 
     // Retitle the chat panel + notify the rest of the UI
     const chatLabel = document.querySelector('.terminal-panel.chat-panel .terminal-header span');
@@ -192,10 +262,11 @@ let dragging = false;
 let dragMoved = false;
 
 function nearestFrontOrb() {
+  const camA = cameraAzimuth();
   let best = null, bestDiff = Infinity;
   for (const orb of orbs.values()) {
-    const world = orb.angle + spinAngle;
-    const diff = Math.abs(((FRONT_ANGLE - world + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI);
+    const world = orb.angle - spinAngle; // ring-local → world azimuth
+    const diff = Math.abs(((camA - world + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI);
     if (diff < bestDiff) { bestDiff = diff; best = orb; }
   }
   return best;
@@ -233,7 +304,7 @@ function initPicking() {
     const dx = e.clientX - startX;
     if (Math.abs(dx) > 4) dragMoved = true;
     if (dragMoved) {
-      focusTargetSpin = null; // manual control overrides focus hold
+      focusOrbId = null; // manual control overrides focus hold
       spinAngle = startSpin + dx * 0.006;
     }
   });
@@ -246,7 +317,7 @@ function initPicking() {
     if (dragMoved) {
       const orb = nearestFrontOrb();
       if (orb) {
-        focusTargetSpin = FRONT_ANGLE - orb.angle; // snap-to-front
+        focusOrbId = orb.id; // snap to camera-front
         selectAgent(orb.id);
       }
     }
@@ -274,7 +345,7 @@ function initPicking() {
     const next = ids[((ids.indexOf(current?.id) < 0 ? 0 : ids.indexOf(current.id) + dir) + ids.length) % ids.length];
     const orb = orbs.get(next);
     if (orb) {
-      focusTargetSpin = FRONT_ANGLE - orb.angle;
+      focusOrbId = orb.id;
       selectAgent(orb.id);
     }
   }, { passive: false, capture: true });
@@ -319,12 +390,14 @@ function animate() {
   const t = clock.getElapsedTime();
   const dt = Math.min(t - lastT, 0.1); lastT = t;
 
-  if (focusTargetSpin !== null) {
-    // Watermelon-style ease-to-front (shortest path); ring holds the focused
-    // orb at front until FOCUS is toggled off or another agent is selected
-    const diff = ((focusTargetSpin - spinAngle + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI;
+  const focusOrb = (!dragging && settings.focus && focusOrbId) ? orbs.get(focusOrbId) : null;
+  if (focusOrb) {
+    // Ease toward camera-front, tracking the camera live as the user orbits it.
+    // Target: orb.angle - spin = cameraAzimuth → spin = orb.angle - camAzimuth
+    const target = focusOrb.angle - cameraAzimuth();
+    const diff = ((target - spinAngle + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI;
     if (Math.abs(diff) > 0.0005) spinAngle += diff * Math.min(1, dt * 4);
-  } else {
+  } else if (!dragging) {
     spinAngle += dt * settings.spin;
   }
   group.rotation.y = spinAngle;
@@ -384,6 +457,9 @@ function animate() {
     // Billboard labels are sprites — nothing to do; keep them upright vs ring spin
     orb.holder.rotation.y = -group.rotation.y;
   }
+
+  // GITS text ring: slow continuous rotation (screen-space, like the anime HUD)
+  if (textRingSprite) textRingSprite.material.rotation -= dt * 0.35;
 }
 
 // ── Init ──
@@ -434,8 +510,7 @@ export function setFleetRadius(v) {
 export function setFleetFocus(v) {
   settings.focus = !!v;
   persist('jurvus-fleet-focus', v ? '1' : '0');
-  if (!v) focusTargetSpin = null;
-  else if (selectedId && orbs.has(selectedId)) focusTargetSpin = FRONT_ANGLE - orbs.get(selectedId).angle;
+  focusOrbId = v && selectedId ? selectedId : null;
 }
 
 export function getFleetSettings() { return { ...settings }; }

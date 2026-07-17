@@ -12,11 +12,12 @@ import { ttsSentence, splitSentences, getCurrentVoice } from '../tts.js';
 
 const router = Router();
 const upload = multer({ dest: os.tmpdir(), limits: { fileSize: 10 * 1024 * 1024 } });
-const WHISPER_MODEL = path.join(os.homedir(), '.whisper-models', 'ggml-base.bin');
+const WHISPER_MODEL = process.env.JURVUS_WHISPER_MODEL || path.join(os.homedir(), '.whisper-models', 'ggml-base.bin');
+const WHISPER_BIN = process.env.JURVUS_WHISPER_BIN || 'whisper-cli';
 
-function whisperTranscribe(audioPath, lang = 'zh') {
+function whisperTranscribe(audioPath, lang = process.env.JURVUS_VOICE_LANG || 'en') {
   return new Promise((resolve, reject) => {
-    execFile('whisper-cli', ['-m', WHISPER_MODEL, '-f', audioPath, '-l', lang, '--no-timestamps', '-nt'],
+    execFile(WHISPER_BIN, ['-m', WHISPER_MODEL, '-f', audioPath, '-l', lang, '--no-timestamps', '-nt'],
       { timeout: 15000 }, (err, stdout) => {
         if (err) return reject(err);
         resolve(stdout.trim());
