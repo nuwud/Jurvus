@@ -160,21 +160,22 @@ function makeCurvedTextTexture(text, colorHex) {
   ctx.shadowColor = colorHex; ctx.shadowBlur = 10;
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
 
-  // Repeat the text to fill the full circle, GITS "ONLINE ONLINE" style
+  // Repeat the text to fill the full circle, GITS "ONLINE ONLINE" style.
+  // Perfect tiling: pick a whole number of repetitions, then distribute every
+  // character evenly over exactly 2π — the loop closes on itself with no
+  // truncated words bleeding into the start.
   const radius = 218;
   const charW = 19; // approx advance at this font size
   const circumference = 2 * Math.PI * radius;
   const unit = text + ' ● ';
-  let full = unit;
-  while (full.length * charW < circumference) full += unit;
+  const reps = Math.max(1, Math.round(circumference / (unit.length * charW)));
+  const full = unit.repeat(reps);
+  const anglePer = (Math.PI * 2) / full.length; // exact — no leftover arc
 
-  const anglePer = charW / radius;
   ctx.translate(size / 2, size / 2);
   for (let i = 0; i < full.length; i++) {
-    const a = i * anglePer;
-    if (a > Math.PI * 2 - anglePer) break;
     ctx.save();
-    ctx.rotate(a);
+    ctx.rotate(i * anglePer);
     ctx.translate(0, -radius);
     ctx.fillText(full[i], 0, 0);
     ctx.restore();

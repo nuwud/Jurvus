@@ -1,7 +1,7 @@
 {
-  "name": "openclaw-jarvis-ui",
-  "version": "1.0.3",
-  "description": "這是 OpenClaw 的互動介面原型（JARVIS 風格 HUD）。 以 CodePen yyyRgry 為基礎，已**完整本地化離線**，可作為後續互動 UI 的雛形。",
+  "name": "jurvus",
+  "version": "1.0.0",
+  "description": "Jurvus — mission-control HUD for an OpenClaw agent fleet. Jarvis for Nuwud.",
   "main": "server/index.js",
   "scripts": {
     "dev": "concurrently \"node --env-file=.env server/index.js\" \"npx vite --port 8001 --host\"",
@@ -12,7 +12,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/jincocodev/openclaw-jarvis-ui-ui.git"
+    "url": "https://github.com/nuwud/Jurvus.git"
   },
   "keywords": [
     "openclaw",
@@ -22,7 +22,7 @@
     "threejs",
     "agent"
   ],
-  "author": "Jincoco <jincoco88912@gmail.com>",
+  "author": "Patrick Wood / Nuwud Multimedia",
   "license": "ISC",
   "type": "module",
   "bugs": {

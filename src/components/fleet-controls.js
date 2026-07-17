@@ -118,13 +118,60 @@ function injectAudioPanelControls() {
           <span>MUSIC VOLUME</span>
           <span class="audio-sensitivity-value" id="music-inline-value">1.00</span>
         </div>
-        <div style="display:flex; gap:8px; align-items:center;">
-          <input type="range" min="0" max="1" value="1" step="0.05" class="slider" id="music-inline-slider" style="flex:1;">
-          <button class="btn" id="music-inline-stop">⏹ STOP</button>
-        </div>
+        <input type="range" min="0" max="1" value="1" step="0.05" class="slider" id="music-inline-slider" style="width:100%;">
       </div>
+      <div class="transport-row">
+        <button class="transport-btn" id="tp-rw" title="Back 10s">⏪ 10</button>
+        <button class="transport-btn" id="tp-play" title="Play / Pause">▶</button>
+        <button class="transport-btn" id="tp-stop" title="Stop">⏹</button>
+        <button class="transport-btn" id="tp-fw" title="Forward 10s">10 ⏩</button>
+        <span class="transport-time" id="tp-time">0:00 / 0:00</span>
+      </div>
+      <input type="range" min="0" max="1000" value="0" step="1" class="slider" id="tp-scrub" style="width:100%;" title="Scrub">
     </div>`);
   host.appendChild(block);
+
+  // ── Transport wiring ──
+  const playerEl = document.getElementById('audio-player');
+  const playBtn = block.querySelector('#tp-play');
+  const scrub = block.querySelector('#tp-scrub');
+  const timeEl = block.querySelector('#tp-time');
+  const fmt = (s) => isFinite(s) ? `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}` : '0:00';
+  let scrubbing = false;
+
+  playBtn.addEventListener('click', () => {
+    if (!playerEl) return;
+    if (playerEl.paused) playerEl.play().catch(() => {});
+    else playerEl.pause();
+  });
+  block.querySelector('#tp-stop').addEventListener('click', () => {
+    if (playerEl) { playerEl.pause(); playerEl.currentTime = 0; }
+  });
+  block.querySelector('#tp-rw').addEventListener('click', () => {
+    if (playerEl) playerEl.currentTime = Math.max(0, playerEl.currentTime - 10);
+  });
+  block.querySelector('#tp-fw').addEventListener('click', () => {
+    if (playerEl && isFinite(playerEl.duration)) playerEl.currentTime = Math.min(playerEl.duration, playerEl.currentTime + 10);
+  });
+
+  scrub.addEventListener('pointerdown', () => { scrubbing = true; });
+  scrub.addEventListener('pointerup', () => { scrubbing = false; });
+  scrub.addEventListener('input', function () {
+    if (playerEl && isFinite(playerEl.duration)) {
+      playerEl.currentTime = (this.value / 1000) * playerEl.duration;
+    }
+  });
+
+  if (playerEl) {
+    playerEl.addEventListener('timeupdate', () => {
+      timeEl.textContent = `${fmt(playerEl.currentTime)} / ${fmt(playerEl.duration)}`;
+      if (!scrubbing && isFinite(playerEl.duration) && playerEl.duration > 0) {
+        scrub.value = Math.round((playerEl.currentTime / playerEl.duration) * 1000);
+      }
+    });
+    playerEl.addEventListener('play', () => { playBtn.textContent = '⏸'; });
+    playerEl.addEventListener('pause', () => { playBtn.textContent = '▶'; });
+  }
 
   const player = document.getElementById('audio-player');
   const sfxSlider = block.querySelector('#sfx-inline-slider');
@@ -148,9 +195,6 @@ function injectAudioPanelControls() {
     const v = parseFloat(this.value);
     if (player) player.volume = v;
     block.querySelector('#music-inline-value').textContent = v.toFixed(2);
-  });
-  block.querySelector('#music-inline-stop').addEventListener('click', () => {
-    if (player) { player.pause(); player.currentTime = 0; }
   });
 }
 

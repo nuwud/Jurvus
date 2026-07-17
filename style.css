@@ -2853,3 +2853,16 @@ body.cinema-mode .notification-container { display: none !important; }
   transition: background 0.15s ease, transform 0.1s ease;
 }
 .fleet-advise-btn:hover { background: rgba(var(--accent-rgb), 0.25); transform: scale(1.15); }
+
+/* Phase 4 polish: audio panel needs room + scroll for transport controls */
+.spectrum-analyzer:not(.collapsed) .spectrum-body { max-height: 72vh; overflow-y: auto; }
+
+.transport-row { display: flex; gap: 6px; align-items: center; justify-content: center; }
+.transport-btn {
+  background: transparent; border: 1px solid rgba(var(--accent-rgb), 0.35);
+  color: var(--text-primary); cursor: pointer; padding: 5px 10px;
+  font-size: 0.8125rem; line-height: 1; border-radius: 3px;
+  transition: background 0.15s ease;
+}
+.transport-btn:hover { background: rgba(var(--accent-rgb), 0.2); }
+.transport-time { font-size: 0.6875rem; opacity: 0.75; min-width: 76px; text-align: center; }

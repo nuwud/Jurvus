@@ -68,9 +68,11 @@ The orb core is adapted from [**ThreeJS-Ball**](https://github.com/nuwud/threejs
 
 ## 🛣️ Roadmap
 
-- 🚧 **Phase 1** — vendor jarvis-ui foundation, point at gateway :3100, rebrand, verify HUD + orb streaming live
-- 🔜 **Phase 2** — swap in ThreeJS-Ball orb, extend single orb → 9-agent fleet with state choreography (idle 😌 / running ⚡ / error 🔴), VRAM gauge
-- 🔮 **Phase 3** — facet audio port, voice layer, TikTok camera mode 🎥, productized multi-user build
+- ✅ **Phase 1** — jarvis-ui foundation, gateway protocol 4, rebrand
+- ✅ **Phase 2** — agent fleet ring with live state choreography (idle 😌 / running ⚡ / error 🔴), click-to-talk agent routing
+- ✅ **Phase 3** — fleet controls, ThreeJS-Ball facet audio + dents, Watermelon ring drag/scroll/snap, 💡 ADVISE revenue coaching, GITS text ring, 🎙 voice loop (local whisper + edge-tts), 🎥 cinema mode, full audio transport
+- ✅ **Phase 4** — ClawHub skill packaging (`SKILL.md`), v1.0.0
+- 🔮 **Next** — multi-host fleets, premium theme variants, richer per-agent analytics
 
 > 🖥️ The **workspaces/3D-office view** is served by tenacitOS (installed alongside) rather than rebuilt here — see `docs/SPEC.md §2`.
 
