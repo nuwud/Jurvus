@@ -283,8 +283,8 @@ function sendConnect() {
     id: String(gwSeqId++),
     method: 'connect',
     params: {
-      minProtocol: 3,
-      maxProtocol: 3,
+      minProtocol: 4,
+      maxProtocol: 4,
       client: {
         id: CLIENT_ID,
         version: CLIENT_VERSION,
