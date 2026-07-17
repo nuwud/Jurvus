@@ -1,0 +1,24 @@
+{
+  "name": "Jurvus",
+  "agent": {
+    "name": "LOC",
+    "emoji": "🤖",
+    "sessionKey": "agent:main:main",
+    "skills": []
+  },
+  "server": {
+    "port": 3210,
+    "gatewayUrl": "ws://127.0.0.1:3100"
+  },
+  "tts": {
+    "voice": "Samantha",
+    "maxChars": 500,
+    "engine": "edge",
+    "edgeVoice": "en-US-GuyNeural",
+    "edgeVoiceAlt": "en-US-AriaNeural"
+  },
+  "theme": {
+    "accentPrimary": "#8800FF",
+    "accentSecondary": "#00FFFF"
+  }
+}
