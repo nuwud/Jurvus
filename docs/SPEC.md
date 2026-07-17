@@ -15,7 +15,8 @@ Give Patrick a single glanceable view of what his OpenClaw agent fleet is doing 
 | Phase | Work | Source |
 |-------|------|--------|
 | **1** 🚧 | Vendor jarvis-ui → `Jurvus`, config to gateway `ws://127.0.0.1:3100`, server port **3210**, SPA port **4200**, rebrand (name "Jurvus", Nuwud palette) | jarvis-ui |
-| **2** 🔜 | Replace stock orb with **ThreeJS-Ball** orb; extend 1 orb → **9-agent fleet ring** (states per §2.3 table); add VRAM gauge (nvidia-smi collector added to jarvis-ui's system-monitor) | this repo |
+| **2** ✅ | **Fleet ring shipped 2026-07-17:** `server/fleet.js` polls gateway RPC (`cron.list`) + `nvidia-smi` every 5s → SSE `{type:'fleet'}`; `src/components/fleet.js` renders one dual-layer ThreeJS-Ball-style orb per agent (breathing idle 😌, wobble+pulse running ⚡, triple-flash error 🔴, dimmed unknown 😶) in a slow-spinning ring; **click an orb → chat routes to that agent** (`POST /api/agent/select` swaps sessionKey server-side, history reloads). Central orb kept as LOC presence. | this repo |
+| **2.5** 🔜 | VRAM gauge HUD panel (data already in fleet SSE), facet-audio port from ThreeJS-Ball, cron countdowns on orb labels | this repo |
 | **3** 🔮 | Facet audio, voice, TikTok camera mode, productization | this repo |
 
 **Attribution:** ISC license and Jincoco/Filip Zrnzevic credits stay in README + LICENSE. ✍️

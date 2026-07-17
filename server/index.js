@@ -6,10 +6,11 @@ import os from 'os';
 import { readFile } from 'fs/promises';
 import { fileURLToPath } from 'url';
 
-import { initGateway, gwRequest } from './gateway.js';
+import { initGateway, gwRequest, setSessionKey } from './gateway.js';
 import { addClient, removeClient, broadcastChat } from './sse.js';
 import { initTTS } from './tts.js';
 import { startSystemMonitor } from './system-monitor.js';
+import { startFleetMonitor, getFleetSnapshot } from './fleet.js';
 
 // Routes
 import chatRoutes from './routes/chat.js';
@@ -58,6 +59,23 @@ app.get('/api/events', (req, res) => {
   req.on('close', () => removeClient(res));
 });
 
+// ── Jurvus Phase 2: fleet + agent selection ──
+app.get('/api/fleet', (req, res) => {
+  const { _roster, _cron, ...pub } = getFleetSnapshot();
+  res.json(pub);
+});
+
+app.post('/api/agent/select', (req, res) => {
+  const { agentId } = req.body || {};
+  if (!agentId || !/^[a-z0-9-]+$/i.test(agentId)) {
+    return res.status(400).json({ error: 'valid agentId required' });
+  }
+  const key = `agent:${agentId}:main`;
+  app.locals.sessionKey = key;
+  setSessionKey(key);
+  res.json({ ok: true, sessionKey: key, agentId });
+});
+
 // ── 掛載路由 ──
 app.use('/api', chatRoutes);
 app.use('/api', statusRoutes(config, OC_CONFIG));
@@ -79,6 +97,7 @@ if (SERVE_STATIC) {
 initTTS(config.tts);
 initGateway({ url: GATEWAY_URL, token: GATEWAY_TOKEN, sessionKey: SESSION_KEY, onChat: broadcastChat });
 startSystemMonitor();
+startFleetMonitor();
 
 app.listen(PORT, () => {
   console.log(`[JARVIS] API server on http://localhost:${PORT}`);

@@ -386,6 +386,12 @@ function connect() {
   gw.on('error', (err) => console.error('[GW] error:', err.message));
 }
 
+// Jurvus Phase 2: allow switching which agent session chat events follow
+export function setSessionKey(key) {
+  configSessionKey = key;
+  console.log('[GW] chat session switched to:', key);
+}
+
 export function gwRequest(method, params) {
   return new Promise((resolve, reject) => {
     if (!gw || !gwReady) return reject(new Error('gateway not connected'));

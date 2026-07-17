@@ -27,6 +27,7 @@ import { initOrbMessages } from './components/orb-messages.js';
 import { initThoughtStream } from './components/thought-stream.js';
 import { initMobileToolbar } from './components/mobile-toolbar.js';
 import { initPowerSave, isPowerSave } from './components/powersave.js';
+import { initFleet } from './components/fleet.js';
 
 document.addEventListener('DOMContentLoaded', async function () {
   // 載入設定
@@ -147,7 +148,10 @@ document.addEventListener('DOMContentLoaded', async function () {
 
   // Three.js 場景
   initScene();
-  
+
+  // Jurvus Phase 2: agent fleet ring
+  initFleet();
+
   // 暴露 resetAnomaly 供 Controls 使用
   window.__jarvisResetAnomaly = resetAnomaly;
   

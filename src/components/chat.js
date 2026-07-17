@@ -627,6 +627,13 @@ export function initChat() {
     addTerminalMessage(message, isCommand);
   });
 
+  // Jurvus Phase 2: switching agents reloads that agent's history
+  window.addEventListener('jurvus-agent-selected', (e) => {
+    if (terminalContent) terminalContent.innerHTML = '';
+    addChatLine(`🔀 Now talking to ${String(e.detail).toUpperCase()}`, 'system-line');
+    loadHistory().catch(() => {});
+  });
+
   if (chatSend) chatSend.addEventListener('click', handleChatSend);
   if (chatInput) {
     // IME 輸入中（注音/日文等）按 Enter 是確認選字，不送出

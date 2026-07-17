@@ -44,3 +44,9 @@ export function broadcastEvent(type) {
   const msg = JSON.stringify({ type });
   for (const res of sseClients) res.write(`data: ${msg}\n\n`);
 }
+
+// Fleet telemetry (Jurvus Phase 2)
+export function broadcastFleet(data) {
+  const msg = JSON.stringify({ type: 'fleet', ...data });
+  for (const res of sseClients) res.write(`data: ${msg}\n\n`);
+}
