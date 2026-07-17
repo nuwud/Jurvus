@@ -6,10 +6,19 @@
 
 import * as THREE from 'three';
 import { getScene, getCamera } from '../core/scene.js';
+import { sfxRunning, sfxDone, sfxError, sfxSelect } from '../core/fleet-audio.js';
 
-const RING_RADIUS = 6.2;
 const ORB_RADIUS = 0.55;
-const RING_SPIN = 0.02; // rad/s — slow drift of the whole ring
+
+// ── Adjustable settings (Phase 3), persisted in localStorage ──
+const settings = {
+  visible: localStorage.getItem('jurvus-fleet-visible') !== '0',
+  labels: localStorage.getItem('jurvus-fleet-labels') !== '0',
+  spin: parseFloat(localStorage.getItem('jurvus-fleet-spin') ?? '0.02'),
+  radius: parseFloat(localStorage.getItem('jurvus-fleet-radius') ?? '6.2'),
+  scale: parseFloat(localStorage.getItem('jurvus-fleet-scale') ?? '1'),
+  sound: true,
+};
 
 const STATE_STYLE = {
   idle:    { opacity: 0.35, wire: 0.9,  breatheHz: 0.25, breatheAmt: 0.03, wobble: 0.00 },
@@ -73,22 +82,30 @@ function makeOrb(agent, index, total) {
   wire.userData.agentId = agent.id;
 
   const angle = (index / total) * Math.PI * 2;
-  holder.position.set(Math.cos(angle) * RING_RADIUS, Math.sin(angle * 2) * 0.35, Math.sin(angle) * RING_RADIUS);
+  holder.position.set(Math.cos(angle) * settings.radius, Math.sin(angle * 2) * 0.35, Math.sin(angle) * settings.radius);
   pivot.add(holder);
 
   return {
-    id: agent.id, pivot, holder, surface, wire, label,
+    id: agent.id, pivot, holder, surface, wire, label, angle, index,
     color, state: 'unknown', errorFlashT: 0, phase: Math.random() * Math.PI * 2,
   };
 }
 
 function setState(orb, state) {
   if (orb.state === state) return;
+  const prev = orb.state;
   if (state === 'error') orb.errorFlashT = clock.elapsedTime;
   orb.state = state;
   const target = state === 'error' ? ERROR_COLOR : orb.color;
   orb.surface.material.color.copy(target);
   orb.wire.material.color.copy(target);
+
+  // SFX on meaningful transitions (skip initial unknown→x population)
+  if (settings.sound && prev !== 'unknown') {
+    if (state === 'running') sfxRunning(orb.index);
+    else if (state === 'error') sfxError();
+    else if (state === 'idle' && prev === 'running') sfxDone(orb.index);
+  }
 }
 
 // ── Public: build / sync from telemetry ──
@@ -105,12 +122,15 @@ function syncFleet(agents) {
     }
     setState(orb, agent.state || 'unknown');
   });
+  // Feed the HUD agent menu (fleet-controls.js)
+  window.dispatchEvent(new CustomEvent('jurvus-fleet-data', { detail: { agents, selectedId } }));
 }
 
 // ── Selection ──
 
-async function selectAgent(agentId) {
+export async function selectAgent(agentId) {
   if (selectedId === agentId) return;
+  if (settings.sound) sfxSelect();
   try {
     const r = await fetch('/api/agent/select', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -161,18 +181,25 @@ function initPicking() {
 
 // ── Animation (transform mutation only; render happens in the main loop) ──
 
+let spinAngle = 0;
+let lastT = 0;
+
 function animate() {
   requestAnimationFrame(animate);
   if (!group) return;
   const t = clock.getElapsedTime();
-  group.rotation.y = t * RING_SPIN;
+  const dt = Math.min(t - lastT, 0.1); lastT = t;
+  spinAngle += dt * settings.spin;
+  group.rotation.y = spinAngle;
+  group.visible = settings.visible;
 
   for (const orb of orbs.values()) {
     const style = STATE_STYLE[orb.state] || STATE_STYLE.unknown;
 
     // Breathing / pulsing scale
-    const s = 1 + Math.sin(t * style.breatheHz * Math.PI * 2 + orb.phase) * style.breatheAmt;
+    const s = (1 + Math.sin(t * style.breatheHz * Math.PI * 2 + orb.phase) * style.breatheAmt) * settings.scale;
     orb.holder.scale.setScalar(s);
+    orb.label.visible = settings.labels;
 
     // Opacity targets
     orb.surface.material.opacity += (style.opacity * 0.5 - orb.surface.material.opacity) * 0.1;
@@ -232,3 +259,23 @@ export function initFleet() {
   animate();
   console.log('[FLEET] initialized');
 }
+
+// ── Phase 3: control setters (persisted) ──
+
+function persist(key, val) { localStorage.setItem(key, String(val)); }
+
+export function setFleetVisible(v) { settings.visible = !!v; persist('jurvus-fleet-visible', v ? '1' : '0'); }
+export function setFleetLabels(v) { settings.labels = !!v; persist('jurvus-fleet-labels', v ? '1' : '0'); }
+export function setFleetSpin(v) { settings.spin = v; persist('jurvus-fleet-spin', v); }
+export function setFleetScale(v) { settings.scale = v; persist('jurvus-fleet-scale', v); }
+
+export function setFleetRadius(v) {
+  settings.radius = v;
+  persist('jurvus-fleet-radius', v);
+  for (const orb of orbs.values()) {
+    orb.holder.position.set(Math.cos(orb.angle) * v, Math.sin(orb.angle * 2) * 0.35, Math.sin(orb.angle) * v);
+  }
+}
+
+export function getFleetSettings() { return { ...settings }; }
+export function getSelectedAgent() { return selectedId; }

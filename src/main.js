@@ -28,6 +28,7 @@ import { initThoughtStream } from './components/thought-stream.js';
 import { initMobileToolbar } from './components/mobile-toolbar.js';
 import { initPowerSave, isPowerSave } from './components/powersave.js';
 import { initFleet } from './components/fleet.js';
+import { initFleetControls } from './components/fleet-controls.js';
 
 document.addEventListener('DOMContentLoaded', async function () {
   // 載入設定
@@ -151,6 +152,9 @@ document.addEventListener('DOMContentLoaded', async function () {
 
   // Jurvus Phase 2: agent fleet ring
   initFleet();
+
+  // Jurvus Phase 3: fleet controls + SFX + cinema mode
+  initFleetControls();
 
   // 暴露 resetAnomaly 供 Controls 使用
   window.__jarvisResetAnomaly = resetAnomaly;

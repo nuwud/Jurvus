@@ -2811,3 +2811,37 @@ body.power-save .data-bar-fill::after {
     height: 220px;
   }
 }
+
+/* -- Jurvus Phase 3: fleet controls + cinema mode -- */
+
+#fleet-agent-menu { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; max-height: 220px; overflow-y: auto; }
+
+.fleet-agent-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 5px 8px; cursor: pointer;
+  border: 1px solid rgba(var(--accent-rgb), 0.15);
+  transition: background 0.15s ease, border-color 0.15s ease;
+  font-size: 0.6875rem; letter-spacing: 1px;
+}
+.fleet-agent-row:hover { background: rgba(var(--accent-rgb), 0.12); }
+.fleet-agent-row.selected { border-color: rgba(var(--accent-rgb), 0.8); background: rgba(var(--accent-rgb), 0.18); }
+
+.fleet-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.fleet-agent-name { flex: 1; color: var(--text-primary); }
+.fleet-agent-state { opacity: 0.6; font-size: 0.625rem; }
+
+.fleet-toggle { opacity: 0.55; }
+.fleet-toggle.active { opacity: 1; border-color: rgba(var(--accent-rgb), 0.8); background: rgba(var(--accent-rgb), 0.15); }
+
+/* Cinema mode: hide every HUD element, leave only the 3D scene */
+body.cinema-mode .data-panel,
+body.cinema-mode .terminal-panel,
+body.cinema-mode .control-panel,
+body.cinema-mode .scanner-frame,
+body.cinema-mode .scanner-id,
+body.cinema-mode #orb-meta,
+body.cinema-mode .audio-panel,
+body.cinema-mode .mobile-toolbar,
+body.cinema-mode .grid-overlay,
+body.cinema-mode .corner-decorations,
+body.cinema-mode .notification-container { display: none !important; }
