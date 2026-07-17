@@ -8,6 +8,7 @@ import {
   setFleetFocus,
 } from './fleet.js';
 import { setSfxVolume, getSfxVolume, setSfxMuted, isSfxMuted } from '../core/fleet-audio.js';
+import { toggleVoiceMode, isVoiceActive } from './voice.js';
 import { getControls } from '../core/scene.js';
 import { showNotification } from './notifications.js';
 
@@ -203,7 +204,8 @@ export function initFleetControls() {
   const focusBtn = toggleBtn('FOCUS', 'fleet-focus-btn', s.focus);
   const muteBtn = toggleBtn(isSfxMuted() ? 'SFX OFF' : 'SFX ON', 'fleet-mute-btn', !isSfxMuted());
   const cineBtn = toggleBtn('🎥 CINEMA', 'fleet-cine-btn', false);
-  toggles.append(visBtn, labBtn, focusBtn, muteBtn, cineBtn);
+  const voiceBtn = toggleBtn('🎙 VOICE', 'fleet-voice-btn', false);
+  toggles.append(visBtn, labBtn, focusBtn, muteBtn, cineBtn, voiceBtn);
   content.appendChild(toggles);
 
   // Sliders
@@ -259,6 +261,19 @@ export function initFleetControls() {
   muteBtn.addEventListener('click', toggleMute);
 
   focusBtn.addEventListener('click', () => { const on = !getFleetSettings().focus; setFleetFocus(on); setToggleState(focusBtn, on); });
+
+  // 🎙 Hands-free voice loop: mic (VAD) → whisper → selected agent → TTS
+  voiceBtn.addEventListener('click', async () => {
+    try {
+      await toggleVoiceMode();
+      const on = isVoiceActive();
+      setToggleState(voiceBtn, on);
+      showNotification(on ? '🎙 VOICE MODE ON — just speak' : 'VOICE MODE OFF');
+    } catch (err) {
+      console.error('[VOICE] toggle failed:', err);
+      showNotification('VOICE MODE FAILED — mic permission?');
+    }
+  });
 
   cineBtn.addEventListener('click', () => setCinemaMode(!cinema));
   window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && cinema) setCinemaMode(false); });
