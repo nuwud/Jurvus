@@ -15,6 +15,40 @@ const STATE_DOT = { idle: '#7fd97f', running: '#00e5ff', error: '#ff2244', unkno
 
 let latestAgents = [];
 
+// ── 💡 ADVISE: each agent proactively coaches Patrick on revenue next-steps ──
+
+const AGENT_DOMAINS = {
+  'main': 'overall coordination of the Nuwud agent fleet and business priorities',
+  'nuwud-revenue': 'offers, pricing, sales pipeline, Stripe/Shopify revenue, GrubGoals and HMoonHydro monetization',
+  'nuwud-dev': 'client development work, WatermelonOS, MIDBRO, Shopify apps, and productizable code assets',
+  'nuwud-content': 'content marketing that converts — social posts, blog, case studies, email sequences',
+  'nuwud-shopify': 'Shopify theme development, premium store builds, and app opportunities',
+  'nuwud-ops': 'infrastructure cost efficiency, reliability, and automation that frees up billable time',
+  'nuwud-3d': 'immersive Three.js/WebGL experiences and productizing 3D work like ThreeJS-Ball and Watermelon menus',
+  'nuwud-patrick': "Patrick's personal brand, positioning as a Founder Systems Architect, and audience growth",
+  'nuwud-free': 'low-cost experiments and lead-generation ideas',
+};
+
+function advisePrompt(agentId) {
+  const domain = AGENT_DOMAINS[agentId] || 'your domain';
+  return `ADVISOR MODE — Review your workspace notes and memory first. As the agent responsible for ${domain}, give Patrick Wood the top 3 highest-leverage actions he can take RIGHT NOW to move revenue forward for Nuwud Multimedia LLC. For each: the exact next step, estimated effort, and expected impact. Be concrete and specific to Nuwud — no generic advice. End with exactly one question for Patrick whose answer would most improve your next recommendation.`;
+}
+
+export async function adviseAgent(agentId) {
+  await selectAgent(agentId); // routes chat + focuses the orb
+  window.dispatchEvent(new CustomEvent('terminal-message', {
+    detail: { message: `💡 Asking ${agentId.toUpperCase()} for revenue guidance...`, isCommand: true },
+  }));
+  try {
+    await fetch('/api/chat', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: advisePrompt(agentId) }),
+    });
+  } catch (err) {
+    console.error('[FLEET] advise failed:', err);
+  }
+}
+
 function el(html) {
   const t = document.createElement('template');
   t.innerHTML = html.trim();
@@ -49,10 +83,74 @@ function renderAgentMenu(container) {
         <span class="fleet-dot" style="background:${STATE_DOT[a.state] || STATE_DOT.unknown}; box-shadow: 0 0 6px ${STATE_DOT[a.state] || 'transparent'}"></span>
         <span class="fleet-agent-name">${a.id.replace(/^nuwud-/, '').toUpperCase()}</span>
         <span class="fleet-agent-state">${a.state.toUpperCase()}</span>
+        <button class="fleet-advise-btn" title="Ask ${a.id} for revenue next-steps">💡</button>
       </div>`);
     row.addEventListener('click', () => selectAgent(a.id));
+    row.querySelector('.fleet-advise-btn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      adviseAgent(a.id);
+    });
     container.appendChild(row);
   }
+}
+
+// ── Audio panel injection: SFX + music playback controls where users expect them ──
+
+function injectAudioPanelControls() {
+  const host = document.querySelector('.spectrum-analyzer .audio-controls');
+  if (!host || document.getElementById('sfx-inline-slider')) return;
+
+  const block = el(`
+    <div class="controls-row" style="flex-direction: column; gap: 8px; margin-top: 8px; border-top: 1px solid rgba(var(--accent-rgb), 0.2); padding-top: 8px;">
+      <div class="audio-sensitivity" style="width:100%;">
+        <div class="audio-sensitivity-label">
+          <span>FLEET SFX</span>
+          <span class="audio-sensitivity-value" id="sfx-inline-value">${isSfxMuted() ? 'MUTED' : getSfxVolume().toFixed(2)}</span>
+        </div>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <input type="range" min="0" max="1" value="${getSfxVolume()}" step="0.05" class="slider" id="sfx-inline-slider" style="flex:1;">
+          <button class="btn" id="sfx-inline-mute">${isSfxMuted() ? 'UNMUTE' : 'MUTE'}</button>
+        </div>
+      </div>
+      <div class="audio-sensitivity" style="width:100%;">
+        <div class="audio-sensitivity-label">
+          <span>MUSIC VOLUME</span>
+          <span class="audio-sensitivity-value" id="music-inline-value">1.00</span>
+        </div>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <input type="range" min="0" max="1" value="1" step="0.05" class="slider" id="music-inline-slider" style="flex:1;">
+          <button class="btn" id="music-inline-stop">⏹ STOP</button>
+        </div>
+      </div>
+    </div>`);
+  host.appendChild(block);
+
+  const player = document.getElementById('audio-player');
+  const sfxSlider = block.querySelector('#sfx-inline-slider');
+  const sfxValue = block.querySelector('#sfx-inline-value');
+  const sfxMute = block.querySelector('#sfx-inline-mute');
+
+  sfxSlider.addEventListener('input', function () {
+    const v = parseFloat(this.value);
+    setSfxVolume(v);
+    if (isSfxMuted() && v > 0) { setSfxMuted(false); sfxMute.textContent = 'MUTE'; }
+    sfxValue.textContent = v.toFixed(2);
+  });
+  sfxMute.addEventListener('click', () => {
+    const m = !isSfxMuted();
+    setSfxMuted(m);
+    sfxMute.textContent = m ? 'UNMUTE' : 'MUTE';
+    sfxValue.textContent = m ? 'MUTED' : getSfxVolume().toFixed(2);
+  });
+
+  block.querySelector('#music-inline-slider').addEventListener('input', function () {
+    const v = parseFloat(this.value);
+    if (player) player.volume = v;
+    block.querySelector('#music-inline-value').textContent = v.toFixed(2);
+  });
+  block.querySelector('#music-inline-stop').addEventListener('click', () => {
+    if (player) { player.pause(); player.currentTime = 0; }
+  });
 }
 
 // ── Cinema mode 🎥 ──
@@ -116,11 +214,22 @@ export function initFleetControls() {
   content.append(spin, radius, scale, sfxVol);
 
   // Agent menu
-  content.appendChild(el(`<div class="control-row" style="margin-top:8px;"><span class="control-label">AGENTS — CLICK TO TALK</span></div>`));
+  content.appendChild(el(`<div class="control-row" style="margin-top:8px;"><span class="control-label">AGENTS — CLICK TO TALK · 💡 TO GET ADVICE</span></div>`));
   const menu = el(`<div id="fleet-agent-menu"></div>`);
   content.appendChild(menu);
 
+  // Big advise button for the currently selected agent
+  const adviseBig = el(`<button class="btn" id="fleet-advise-selected" style="width:100%; margin-top:8px;">💡 WHAT SHOULD I DO NEXT?</button>`);
+  adviseBig.addEventListener('click', () => {
+    const target = getSelectedAgent() || 'nuwud-revenue';
+    adviseAgent(target);
+  });
+  content.appendChild(adviseBig);
+
   panel.appendChild(content);
+
+  // SFX + music controls inside the ♪ AUDIO panel (discoverability)
+  injectAudioPanelControls();
 
   // ── Wire events ──
   const bindSlider = (id, fmt, fn) => {

@@ -5,7 +5,7 @@
 // Click an orb to route the chat panel to that agent's session.
 
 import * as THREE from 'three';
-import { getScene, getCamera } from '../core/scene.js';
+import { getScene, getCamera, getControls } from '../core/scene.js';
 import { sfxRunning, sfxDone, sfxError, sfxSelect, sfxFacet, sfxChord } from '../core/fleet-audio.js';
 
 const ORB_RADIUS = 0.55;
@@ -186,18 +186,98 @@ function castAt(e, raycaster, mouse) {
   return null;
 }
 
+// Watermelon Carousel3DPro-style ring drag: grab an orb, drag to spin the ring,
+// release snaps the nearest orb to front and selects it.
+let dragging = false;
+let dragMoved = false;
+
+function nearestFrontOrb() {
+  let best = null, bestDiff = Infinity;
+  for (const orb of orbs.values()) {
+    const world = orb.angle + spinAngle;
+    const diff = Math.abs(((FRONT_ANGLE - world + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI);
+    if (diff < bestDiff) { bestDiff = diff; best = orb; }
+  }
+  return best;
+}
+
 function initPicking() {
   const raycaster = new THREE.Raycaster();
   const mouse = new THREE.Vector2();
 
   window.addEventListener('click', (e) => {
     if (e.target.tagName !== 'CANVAS') return; // ignore clicks on HUD panels
+    if (dragMoved) { dragMoved = false; return; } // drag release ≠ click
     const found = castAt(e, raycaster, mouse);
     if (found) {
       if (settings.sound) sfxChord('click'); // ThreeJS-Ball E-major click
       selectAgent(found.agentId);
     }
   });
+
+  // ── Ring drag (Watermelon methodology) ──
+  let startX = 0, startSpin = 0, controlsWereEnabled = null;
+
+  window.addEventListener('pointerdown', (e) => {
+    if (e.target.tagName !== 'CANVAS' || e.button !== 0) return;
+    const found = castAt(e, raycaster, mouse);
+    if (!found) return;
+    dragging = true; dragMoved = false;
+    startX = e.clientX; startSpin = spinAngle;
+    const controls = getControls?.();
+    if (controls) { controlsWereEnabled = controls.enabled; controls.enabled = false; }
+  });
+
+  window.addEventListener('pointermove', (e) => {
+    if (!dragging) return;
+    const dx = e.clientX - startX;
+    if (Math.abs(dx) > 4) dragMoved = true;
+    if (dragMoved) {
+      focusTargetSpin = null; // manual control overrides focus hold
+      spinAngle = startSpin + dx * 0.006;
+    }
+  });
+
+  window.addEventListener('pointerup', () => {
+    if (!dragging) return;
+    dragging = false;
+    const controls = getControls?.();
+    if (controls && controlsWereEnabled !== null) { controls.enabled = controlsWereEnabled; controlsWereEnabled = null; }
+    if (dragMoved) {
+      const orb = nearestFrontOrb();
+      if (orb) {
+        focusTargetSpin = FRONT_ANGLE - orb.angle; // snap-to-front
+        selectAgent(orb.id);
+      }
+    }
+  });
+
+  // ── Scroll wheel over the ring: step to next/prev agent (Watermelon style).
+  // Wheel elsewhere on canvas still zooms via OrbitControls.
+  let wheelAccum = 0, wheelCooldown = 0;
+  window.addEventListener('wheel', (e) => {
+    if (e.target.tagName !== 'CANVAS') return;
+    const found = castAt(e, raycaster, mouse);
+    if (!found) return; // not over the ring → let OrbitControls zoom
+    e.preventDefault(); e.stopImmediatePropagation();
+
+    const now = performance.now();
+    if (now < wheelCooldown) return;
+    wheelAccum += e.deltaY;
+    if (Math.abs(wheelAccum) < 40) return; // one notch per step
+    const dir = wheelAccum > 0 ? 1 : -1;
+    wheelAccum = 0; wheelCooldown = now + 180;
+
+    const ids = [...orbs.values()].sort((a, b) => a.index - b.index).map(o => o.id);
+    if (!ids.length) return;
+    const current = nearestFrontOrb();
+    const next = ids[((ids.indexOf(current?.id) < 0 ? 0 : ids.indexOf(current.id) + dir) + ids.length) % ids.length];
+    const orb = orbs.get(next);
+    if (orb) {
+      focusTargetSpin = FRONT_ANGLE - orb.angle;
+      selectAgent(orb.id);
+    }
+  }, { passive: false, capture: true });
 
   // ThreeJS-Ball hover: facet sounds + surface dents
   let lastFacet = -1, lastAgent = null, lastHoverT = 0;

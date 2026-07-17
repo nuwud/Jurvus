@@ -2845,3 +2845,11 @@ body.cinema-mode .mobile-toolbar,
 body.cinema-mode .grid-overlay,
 body.cinema-mode .corner-decorations,
 body.cinema-mode .notification-container { display: none !important; }
+
+/* Phase 3c: advise buttons */
+.fleet-advise-btn {
+  background: transparent; border: 1px solid rgba(var(--accent-rgb), 0.3);
+  cursor: pointer; font-size: 0.75rem; padding: 2px 6px; line-height: 1;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+.fleet-advise-btn:hover { background: rgba(var(--accent-rgb), 0.25); transform: scale(1.15); }
