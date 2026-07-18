@@ -2,7 +2,7 @@
 
 > **Jurvus** = *Jarvis for Nuwud*. A real-time 3D visualization of the OpenClaw agent fleet running on LUMINARCH-TITAN — orbs, HUD, and workspaces, powered by Three.js.
 
-![Version](https://img.shields.io/badge/version-1.0.0-blueviolet) ![Three.js](https://img.shields.io/badge/three.js-WebGL-orange) ![Spec Guided](https://img.shields.io/badge/build-spec--guided-brightgreen) ![License](https://img.shields.io/badge/license-ISC-blue)
+![Version](https://img.shields.io/badge/version-1.0.1-blueviolet) ![Three.js](https://img.shields.io/badge/three.js-WebGL-orange) ![Spec Guided](https://img.shields.io/badge/build-spec--guided-brightgreen) ![License](https://img.shields.io/badge/license-ISC-blue)
 
 ---
 
