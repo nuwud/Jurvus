@@ -92,8 +92,8 @@ function makeOrb(agent, index, total) {
   label.position.y = -ORB_RADIUS - 0.55;
 
   holder.add(surface, wire, label);
-  holder.userData = { agentId: agent.id };
-  surface.userData = { agentId: agent.id };
+  holder.userData.agentId = agent.id;
+  surface.userData.agentId = agent.id; // property assignment — preserves basePositions
   wire.userData.agentId = agent.id;
 
   const angle = (index / total) * Math.PI * 2;

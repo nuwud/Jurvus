@@ -1,6 +1,6 @@
 {
   "name": "jurvus",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Jurvus — mission-control HUD for an OpenClaw agent fleet. Jarvis for Nuwud.",
   "main": "server/index.js",
   "scripts": {

@@ -83,9 +83,9 @@ function cleanupAudioSource() {
 }
 
 function createNewAudioElement() {
-  if (currentAudioElement && currentAudioElement.parentNode) {
-    currentAudioElement.parentNode.removeChild(currentAudioElement);
-  }
+  // Remove ALL existing #audio-player elements (incl. the static one from
+  // index.html) — duplicates split playback and external transport controls.
+  document.querySelectorAll('#audio-player').forEach((el) => { try { el.pause(); } catch {} el.remove(); });
   const newAudioElement = document.createElement('audio');
   newAudioElement.id = 'audio-player';
   newAudioElement.className = 'audio-player';

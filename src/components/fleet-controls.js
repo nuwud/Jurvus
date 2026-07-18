@@ -132,48 +132,65 @@ function injectAudioPanelControls() {
   host.appendChild(block);
 
   // ── Transport wiring ──
-  const playerEl = document.getElementById('audio-player');
+  // audio.js REPLACES the #audio-player element when a track loads, so we
+  // resolve the live element at action time and rebind listeners on change.
+  const getPlayer = () => document.getElementById('audio-player');
   const playBtn = block.querySelector('#tp-play');
   const scrub = block.querySelector('#tp-scrub');
   const timeEl = block.querySelector('#tp-time');
   const fmt = (s) => isFinite(s) ? `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}` : '0:00';
   let scrubbing = false;
+  let boundPlayer = null;
+
+  const onTime = () => {
+    const p = boundPlayer;
+    if (!p) return;
+    timeEl.textContent = `${fmt(p.currentTime)} / ${fmt(p.duration)}`;
+    if (!scrubbing && isFinite(p.duration) && p.duration > 0) {
+      scrub.value = Math.round((p.currentTime / p.duration) * 1000);
+    }
+  };
+  const onPlay = () => { playBtn.textContent = '⏸'; };
+  const onPause = () => { playBtn.textContent = '▶'; };
+
+  const bindPlayer = () => {
+    const p = getPlayer();
+    if (!p || p === boundPlayer) return;
+    boundPlayer = p;
+    p.addEventListener('timeupdate', onTime);
+    p.addEventListener('play', onPlay);
+    p.addEventListener('pause', onPause);
+    p.volume = parseFloat(block.querySelector('#music-inline-slider').value);
+    playBtn.textContent = p.paused ? '▶' : '⏸';
+  };
+  bindPlayer();
+  setInterval(bindPlayer, 1500); // catch element replacement by audio.js
 
   playBtn.addEventListener('click', () => {
-    if (!playerEl) return;
-    if (playerEl.paused) playerEl.play().catch(() => {});
-    else playerEl.pause();
+    const p = getPlayer(); if (!p) return;
+    if (p.paused) p.play().catch(() => {});
+    else p.pause();
   });
   block.querySelector('#tp-stop').addEventListener('click', () => {
-    if (playerEl) { playerEl.pause(); playerEl.currentTime = 0; }
+    const p = getPlayer();
+    if (p) { p.pause(); p.currentTime = 0; }
   });
   block.querySelector('#tp-rw').addEventListener('click', () => {
-    if (playerEl) playerEl.currentTime = Math.max(0, playerEl.currentTime - 10);
+    const p = getPlayer();
+    if (p) p.currentTime = Math.max(0, p.currentTime - 10);
   });
   block.querySelector('#tp-fw').addEventListener('click', () => {
-    if (playerEl && isFinite(playerEl.duration)) playerEl.currentTime = Math.min(playerEl.duration, playerEl.currentTime + 10);
+    const p = getPlayer();
+    if (p && isFinite(p.duration)) p.currentTime = Math.min(p.duration, p.currentTime + 10);
   });
 
   scrub.addEventListener('pointerdown', () => { scrubbing = true; });
   scrub.addEventListener('pointerup', () => { scrubbing = false; });
   scrub.addEventListener('input', function () {
-    if (playerEl && isFinite(playerEl.duration)) {
-      playerEl.currentTime = (this.value / 1000) * playerEl.duration;
-    }
+    const p = getPlayer();
+    if (p && isFinite(p.duration)) p.currentTime = (this.value / 1000) * p.duration;
   });
 
-  if (playerEl) {
-    playerEl.addEventListener('timeupdate', () => {
-      timeEl.textContent = `${fmt(playerEl.currentTime)} / ${fmt(playerEl.duration)}`;
-      if (!scrubbing && isFinite(playerEl.duration) && playerEl.duration > 0) {
-        scrub.value = Math.round((playerEl.currentTime / playerEl.duration) * 1000);
-      }
-    });
-    playerEl.addEventListener('play', () => { playBtn.textContent = '⏸'; });
-    playerEl.addEventListener('pause', () => { playBtn.textContent = '▶'; });
-  }
-
-  const player = document.getElementById('audio-player');
   const sfxSlider = block.querySelector('#sfx-inline-slider');
   const sfxValue = block.querySelector('#sfx-inline-value');
   const sfxMute = block.querySelector('#sfx-inline-mute');
@@ -193,7 +210,8 @@ function injectAudioPanelControls() {
 
   block.querySelector('#music-inline-slider').addEventListener('input', function () {
     const v = parseFloat(this.value);
-    if (player) player.volume = v;
+    const p = getPlayer();
+    if (p) p.volume = v;
     block.querySelector('#music-inline-value').textContent = v.toFixed(2);
   });
 }

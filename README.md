@@ -2,16 +2,19 @@
 
 > **Jurvus** = *Jarvis for Nuwud*. A real-time 3D visualization of the OpenClaw agent fleet running on LUMINARCH-TITAN — orbs, HUD, and workspaces, powered by Three.js.
 
-![Status](https://img.shields.io/badge/status-v1_scaffold-blueviolet) ![Three.js](https://img.shields.io/badge/three.js-WebGL-orange) ![Spec Guided](https://img.shields.io/badge/build-spec--guided-brightgreen)
+![Version](https://img.shields.io/badge/version-1.0.0-blueviolet) ![Three.js](https://img.shields.io/badge/three.js-WebGL-orange) ![Spec Guided](https://img.shields.io/badge/build-spec--guided-brightgreen) ![License](https://img.shields.io/badge/license-ISC-blue)
 
 ---
 
 ## ✨ What It Does
 
-- 🟣 **Agent Orbs** — one living, breathing orb per OpenClaw agent, orbiting a central gateway core. Color and motion reflect real state: idle 😌, running ⚡, error 🔴.
-- 🎛️ **Jarvis HUD** — VRAM gauge, cron countdown ring, event ticker, and channel status dots framing the scene.
-- 🖥️ **Workspaces View** — fly the camera down to a room of agent workstations, each desk showing its agent's live status.
-- 🔌 **Telemetry Bridge** — a small local Node service that polls OpenClaw, Ollama, and the GPU, then streams clean JSON to the browser. Your gateway token never touches the page.
+- 🟣 **Agent Fleet Ring** — one living, breathing orb per OpenClaw agent (auto-discovered), orbiting the central presence orb. Color and motion reflect real state: idle 😌, running ⚡, error 🔴, with pentatonic SFX on transitions.
+- 💬 **Click-to-Talk** — select any orb (click, drag-snap, scroll wheel, or ←/→ keys) and the chat panel + voice loop route to that agent's session. A GITS-style curved text ring circles the active orb.
+- 💡 **ADVISE** — every agent can coach you: one click sends a domain-specific prompt asking for the top 3 highest-leverage revenue actions in its lane.
+- 🎙 **Voice Loop** — hands-free: VAD mic detection → local whisper.cpp transcription → agent → streaming edge-tts reply, interruptible mid-sentence.
+- 🏀 **ThreeJS-Ball DNA** — per-facet synth timbres on hover, surface dents that spring back, E-major click chords.
+- 🎥 **Cinema Mode** — hides the entire HUD and auto-orbits the camera for clean recordings.
+- 🔌 **Telemetry Server** — a local Node relay that speaks the Gateway WebSocket protocol, polls cron/GPU/Ollama, and streams state over SSE. Your gateway token never touches the page.
 
 ## 🧱 Foundation — Standing on Open Shoulders
 
@@ -36,7 +39,14 @@ Jurvus is a **remix**, not a from-scratch build:
 
 ```powershell
 npm install
-# .env holds GATEWAY_TOKEN (auto-detected from ~/.openclaw/openclaw.json)
+./setup.sh          # auto-detects Gateway token → .env (or set GATEWAY_TOKEN manually)
+
+# Production (recommended)
+npm run build
+node --env-file=.env server/index.js
+# open http://localhost:3210
+
+# Development (Vite HMR)
 npm run dev
 # open http://localhost:4200
 ```
@@ -47,12 +57,16 @@ npm run dev
 
 | Input | Action |
 |-------|--------|
-| 🖱️ Drag | Orbit camera |
-| 🖱️ Scroll | Zoom |
-| 🖱️ Click orb | Open agent detail panel |
-| ⌨️ `1` | Orbs + HUD view |
-| ⌨️ `2` | Workspaces view |
-| ⌨️ `Esc` | Close panel |
+| 🖱️ Drag empty space | Orbit camera |
+| 🖱️ Scroll (off ring) | Zoom |
+| 🖱️ Click orb | Select agent → chat/voice route to it (E-major chord 🎵) |
+| 🖱️ Drag an orb | Spin the ring — release snaps nearest orb to front |
+| 🖱️ Scroll over ring | Step to next/prev agent |
+| 🖱️ Hover orb | Facet sounds + surface dents (ThreeJS-Ball style) |
+| ⌨️ `←` / `→` | Cycle agents |
+| ⌨️ `Esc` | Exit cinema mode |
+| 🎛️ DATA CENTER → FLEET | Ring/labels/focus toggles, spin/radius/size sliders, agent menu, 💡 ADVISE, 🎙 VOICE, 🎥 CINEMA |
+| ♪ AUDIO panel | Play/pause/stop/±10s, scrub bar, music + SFX volume |
 
 ## 📐 Spec-Guided Build
 
