@@ -186,9 +186,12 @@ function makeCurvedTextTexture(text, colorHex) {
   return tex;
 }
 
+const STATE_DISPLAY = { unknown: 'STANDBY' }; // no cron jobs yet ≠ broken
+
 function refreshTextRing(orb) {
   if (!orb) return;
-  const label = `${orb.id.toUpperCase()} · ${orb.state.toUpperCase()} · ONLINE`;
+  const stateLabel = (STATE_DISPLAY[orb.state] || orb.state).toUpperCase();
+  const label = `${orb.id.toUpperCase()} · ${stateLabel} · ONLINE`;
   const tex = makeCurvedTextTexture(label, '#' + orb.color.getHexString());
   if (!textRingSprite) {
     textRingSprite = new THREE.Sprite(new THREE.SpriteMaterial({

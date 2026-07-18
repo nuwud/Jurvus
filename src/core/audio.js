@@ -104,6 +104,17 @@ function createNewAudioElement() {
     addTerminalMessage('AUDIO PLAYBACK COMPLETE.');
   });
 
+  // Zoom follows actual playback state — pause/stop (incl. transport buttons)
+  // resets the camera; resume zooms back in.
+  newAudioElement.addEventListener('pause', () => {
+    isAudioPlaying = false;
+    if (onZoomCamera) onZoomCamera(false);
+  });
+  newAudioElement.addEventListener('play', () => {
+    isAudioPlaying = true;
+    if (onZoomCamera) onZoomCamera(true);
+  });
+
   return newAudioElement;
 }
 

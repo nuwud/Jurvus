@@ -83,7 +83,7 @@ function renderAgentMenu(container) {
       <div class="fleet-agent-row ${a.id === selected ? 'selected' : ''}" data-agent="${a.id}" title="model: ${a.model || 'default'} · jobs: ${a.jobs}">
         <span class="fleet-dot" style="background:${STATE_DOT[a.state] || STATE_DOT.unknown}; box-shadow: 0 0 6px ${STATE_DOT[a.state] || 'transparent'}"></span>
         <span class="fleet-agent-name">${a.id.replace(/^nuwud-/, '').toUpperCase()}</span>
-        <span class="fleet-agent-state">${a.state.toUpperCase()}</span>
+        <span class="fleet-agent-state">${(a.state === 'unknown' ? 'STANDBY' : a.state).toUpperCase()}</span>
         <button class="fleet-advise-btn" title="Ask ${a.id} for revenue next-steps">💡</button>
       </div>`);
     row.addEventListener('click', () => selectAgent(a.id));
